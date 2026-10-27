@@ -1,6 +1,7 @@
 import User from "../models/user.js";
 import bcrypt from "bcrypt";
 import { StatusCodes } from "http-status-codes";
+import jwt from "jsonwebtoken";
 
 export const registerUser = async (req, res) => {
   try {
@@ -45,5 +46,55 @@ export const registerUser = async (req, res) => {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ success: false, message: "Internal Issue" });
+  }
+};
+
+export const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ success: false, message: "fill all inputs" });
+    }
+
+    let userExist = await User.findOne({ email });
+    if (!userExist) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ success: false, message: "user is note register" });
+    }
+
+    const isPasswordMatch = await bcrypt.compare(password, userExist.password);
+    if (!isPasswordMatch) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ success: false, message: "Invalid email and password" });
+    }
+
+    // Generate Token
+    const token = jwt.sign(
+      { id: userExist.id, role: userExist.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" },
+    );
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: "User Login successfully",
+      data: {
+        id: userExist.id,
+        name: userExist.name,
+        email: userExist.email,
+        role: userExist.role,
+        token: token,
+      },
+    });
+  } catch (error) {
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Internal Issue",
+      error: error.message,
+    });
   }
 };
