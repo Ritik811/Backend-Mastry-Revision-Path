@@ -79,17 +79,24 @@ export const loginUser = async (req, res) => {
       { expiresIn: "1d" },
     );
 
-    return res.status(StatusCodes.OK).json({
-      success: true,
-      message: "User Login successfully",
-      data: {
-        id: userExist.id,
-        name: userExist.name,
-        email: userExist.email,
-        role: userExist.role,
-        token: token,
-      },
-    });
+    return res
+      .status(StatusCodes.OK)
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV == "production",
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+      .json({
+        success: true,
+        message: "User Login successfully",
+        data: {
+          id: userExist.id,
+          name: userExist.name,
+          email: userExist.email,
+          role: userExist.role,
+          token: token,
+        },
+      });
   } catch (error) {
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       success: false,
@@ -98,3 +105,5 @@ export const loginUser = async (req, res) => {
     });
   }
 };
+
+
