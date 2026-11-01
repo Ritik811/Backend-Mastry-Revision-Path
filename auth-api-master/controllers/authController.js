@@ -1,6 +1,6 @@
 import User from "../models/user.js";
 import bcrypt from "bcrypt";
-import { StatusCodes } from "http-status-codes";
+import { OK, StatusCodes } from "http-status-codes";
 import jwt from "jsonwebtoken";
 
 export const registerUser = async (req, res) => {
@@ -106,4 +106,18 @@ export const loginUser = async (req, res) => {
   }
 };
 
-
+export const logoutUser = async (req, res) => {
+  try {
+    return res
+      .status(StatusCodes.OK)
+      .clearCookie("token", {
+        httpOnly: true,
+        secure: (process.env.NODE_ENV = "production"),
+      })
+      .json({ success: true, message: "User Logout successfully" });
+  } catch (error) {
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ success: false, message: "Internal issue" });
+  }
+};

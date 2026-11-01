@@ -29,3 +29,17 @@ export const isLoggedIn = async (req, res, next) => {
       .json({ success: false, message: "Invalid user" });
   }
 };
+
+export const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res
+        .status(StatusCodes.FORBIDDEN)
+        .json({
+          success: false,
+          message: `Role (${req.user.role}) is not allowed to access this resource! 🚫`,
+        });
+    }
+    next();
+  };
+};
