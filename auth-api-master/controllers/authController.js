@@ -1,6 +1,6 @@
 import User from "../models/user.js";
 import bcrypt from "bcrypt";
-import { OK, StatusCodes } from "http-status-codes";
+import { StatusCodes } from "http-status-codes";
 import jwt from "jsonwebtoken";
 
 export const registerUser = async (req, res) => {
