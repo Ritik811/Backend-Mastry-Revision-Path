@@ -1,17 +1,52 @@
 import { StatusCodes } from "http-status-codes";
 import Url from "../models/URLmodels.js";
-import crypto from "crypto";
+import Counter from "../models/counter.js";
+import { encodeBase62 } from "../utils/base62.js";
+
+const getNextSequence = async (sequenceName) => {
+  const sequenceDocument = await Counter.findOneAndUpdate(
+    { id: sequenceName },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true },
+  );
+
+  return sequenceDocument.seq;
+};
 
 export const shortenUrl = async (req, res) => {
   try {
-    let { originalUrl } = req.body;
+    let { originalUrl, customCode } = req.body;
     if (!originalUrl) {
       return res
         .status(StatusCodes.BAD_REQUEST)
         .json({ success: false, message: "Original Url is required" });
     }
+    let shortCode;
+    if (customCode) {
+      customCode = customCode.tim();
+      const isValidFormat = /^[a-zA-Z0-9-_]+$/.test(customCode);
+      if (!isValidFormat) {
+        return res.status(StatusCodes.BAD_REQUEST).message({
+          success: false,
+          message:
+            "Custom code can only contain letters, numbers, hyphens, and underscores.",
+        });
+      }
 
-    const shortCode = crypto.randomBytes(3).toString("hex");
+      const existingUrl = await Url.find({ shortCode: customCode });
+      if (existingUrl) {
+        return res.status(StatusCodes.CONFLICT).json({
+          success: false,
+          message:
+            "This custom alias is already taken. Please choose another one.",
+        });
+      }
+
+      shortCode = customCode;
+    } else {
+      const counterValue = await getNextSequence("url_count");
+      shortCode = encodeBase62(counterValue);
+    }
 
     const newUrl = await Url.create({
       originalUrl,
