@@ -13,6 +13,15 @@ const getNextSequence = async (sequenceName) => {
   return sequenceDocument.seq;
 };
 
+const isValidUrl = (url) => {
+  try {
+    const parseUrl = new URL(url);
+    return parseUrl.protocol == "http:" || parseUrl.protocol == "https:";
+  } catch (err) {
+    return false;
+  }
+};
+
 export const shortenUrl = async (req, res) => {
   try {
     let { originalUrl, customCode } = req.body;
@@ -21,19 +30,28 @@ export const shortenUrl = async (req, res) => {
         .status(StatusCodes.BAD_REQUEST)
         .json({ success: false, message: "Original Url is required" });
     }
+
+    originalUrl = originalUrl.trim();
+
+    if (!isValidUrl(originalUrl)) {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ success: false, message: "Invalid URL" });
+    }
+
     let shortCode;
     if (customCode) {
-      customCode = customCode.tim();
+      customCode = customCode.trim();
       const isValidFormat = /^[a-zA-Z0-9-_]+$/.test(customCode);
       if (!isValidFormat) {
-        return res.status(StatusCodes.BAD_REQUEST).message({
+        return res.status(StatusCodes.BAD_REQUEST).json({
           success: false,
           message:
             "Custom code can only contain letters, numbers, hyphens, and underscores.",
         });
       }
 
-      const existingUrl = await Url.find({ shortCode: customCode });
+      const existingUrl = await Url.findOne({ shortCode: customCode });
       if (existingUrl) {
         return res.status(StatusCodes.CONFLICT).json({
           success: false,
