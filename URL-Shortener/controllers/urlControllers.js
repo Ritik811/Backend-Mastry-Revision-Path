@@ -66,6 +66,13 @@ export const shortenUrl = async (req, res) => {
       shortCode = encodeBase62(counterValue);
     }
 
+    let expiresAt = null;
+    if (expiresInDays && !isNaN(expiresInDays)) {
+      expiresAt = new Date(
+        Date.now() + Number(expiresInDays) * 24 * 60 * 60 * 1000,
+      );
+    }
+
     const newUrl = await Url.create({
       originalUrl,
       shortCode,
@@ -96,6 +103,13 @@ export const redirectToOriginalUrl = async (req, res) => {
       return res
         .status(StatusCodes.NOT_FOUND)
         .json({ success: false, message: "short url not found or expire" });
+    }
+
+    if (urlRecord.expiresAt && new Date() > urlRecord.expiresAt) {
+      return res.status(StatusCodes.GONE).json({
+        success: false,
+        message: "This short URL has expired and is no longer accessible.",
+      });
     }
 
     urlRecord.clicks++;
