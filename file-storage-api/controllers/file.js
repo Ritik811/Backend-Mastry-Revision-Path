@@ -1,5 +1,6 @@
 import { StatusCodes } from "http-status-codes";
 import File from "../models/files.js";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
 
 export const uploadSingleFile = async (req, res) => {
   try {
@@ -9,20 +10,20 @@ export const uploadSingleFile = async (req, res) => {
         .json({ success: false, message: "Please Upload File" });
     }
 
+    const cloudinaryResponse = await uploadToCloudinary(req.file.buffer);
+
     const newFile = await File.create({
       fileName: req.file.originalname,
-      filePath: req.file.path,
+      filePath: cloudinaryResponse.secure_url,
       fileSize: req.file.size,
       fileType: req.file.mimetype,
     });
 
-    return res
-      .status(StatusCodes.CREATED)
-      .json({
-        success: true,
-        message: "File uploaded Successfully",
-        data: newFile,
-      });
+    return res.status(StatusCodes.CREATED).json({
+      success: true,
+      message: "File uploaded Successfully",
+      data: newFile,
+    });
   } catch (error) {
     return res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
