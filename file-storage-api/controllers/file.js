@@ -30,3 +30,38 @@ export const uploadSingleFile = async (req, res) => {
       .json({ success: false, message: "Internal issue" });
   }
 };
+
+export const uploadMultipleFiles = async (req, res) => {
+  try {
+    if (!req.files || req.files.length == 0) {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ success: false, message: "upload at least one file" });
+    }
+
+    const uploadPromises = req.files.map(async (file) => {
+      const cloudinaryResponse = await uploadToCloudinary(file.buffer);
+
+      return File.create({
+        fileName: file.originalname,
+        filePath: cloudinaryResponse.secure_url,
+        fileType: file.mimetype,
+        fileSize: file.size,
+      });
+    });
+
+    const savedFiles = await Promise.all(uploadPromises);
+
+    return res
+      .status(StatusCodes.CREATED)
+      .json({
+        success: true,
+        message: "File Uploads Successfully",
+        data: savedFiles,
+      });
+  } catch (error) {
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ success: false, message: "Internal issue" });
+  }
+};

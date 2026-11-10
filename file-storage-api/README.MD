@@ -1,17 +1,17 @@
 # 📂 File Storage Services API (Project 3)
 
-A robust backend service built with Node.js, Express, MongoDB, and **Cloudinary** for handling seamless cloud-based file uploads using Multer memory storage.
+A robust backend service built with Node.js, Express, MongoDB, and **Cloudinary** for handling seamless cloud-based file uploads (both single and multiple files) using Multer memory storage.
 
 ---
 
 ## 🚀 Tech Stack
 
-* **Runtime:** Node.js
-* **Framework:** Express.js
-* **Database:** MongoDB & Mongoose (ODM)
-* **Cloud Storage:** Cloudinary SDK (`upload_stream`)
-* **Middleware:** Multer (`memoryStorage`)
-* **API Testing Tool:** Thunder Client
+- **Runtime:** Node.js
+- **Framework:** Express.js
+- **Database:** MongoDB & Mongoose (ODM)
+- **Cloud Storage:** Cloudinary SDK (`upload_stream`)
+- **Middleware:** Multer (`memoryStorage`)
+- **API Testing Tool:** Thunder Client
 
 ---
 
@@ -39,7 +39,7 @@ file-storage-api/
 │   └── cloudinary.js       # Cloudinary SDK Configuration
 │
 ├── controllers/
-│   └── fileController.js   # File upload logic & DB storage
+│   └── fileController.js   # Single & Multiple file upload logic
 │
 ├── middleware/
 │   └── upload.js           # Multer memoryStorage configuration
@@ -63,6 +63,7 @@ file-storage-api/
 ## ⚙️ Implementation Details
 
 ### 1. File Model (`models/FileModel.js`)
+
 Stores file metadata (original name, secure cloud URL, size, and mimetype) in MongoDB.
 
 ```javascript
@@ -75,13 +76,14 @@ const fileSchema = new mongoose.Schema(
     fileSize: { type: Number, required: true },
     fileType: { type: String, required: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model("File", fileSchema);
 ```
 
 ### 2. Cloudinary Config (`config/cloudinary.js`)
+
 Initializes the Cloudinary SDK using credentials from environment variables.
 
 ```javascript
@@ -100,6 +102,7 @@ export default cloudinary;
 ```
 
 ### 3. Multer Middleware (`middleware/upload.js`)
+
 Configures Multer to store files temporarily in RAM (buffer) rather than local disk.
 
 ```javascript
@@ -111,6 +114,7 @@ export const upload = multer({ storage: storage });
 ```
 
 ### 4. Cloudinary Upload Utility (`utils/cloudinaryUpload.js`)
+
 Streams the file buffer directly to Cloudinary.
 
 ```javascript
@@ -123,7 +127,7 @@ export const uploadToCloudinary = (fileBuffer) => {
       (error, result) => {
         if (error) return reject(error);
         resolve(result);
-      }
+      },
     );
 
     uploadStream.end(fileBuffer);
@@ -132,13 +136,15 @@ export const uploadToCloudinary = (fileBuffer) => {
 ```
 
 ### 5. File Controller (`controllers/fileController.js`)
-Handles the request, uploads the buffer to Cloudinary, and saves the cloud secure URL to MongoDB.
+
+Handles single and multiple file uploads, streaming buffers to Cloudinary and saving metadata to MongoDB.
 
 ```javascript
 import { StatusCodes } from "http-status-codes";
 import File from "../models/FileModel.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 
+// Single File Upload
 export const uploadSingleFile = async (req, res) => {
   try {
     if (!req.file) {
@@ -148,10 +154,8 @@ export const uploadSingleFile = async (req, res) => {
       });
     }
 
-    // Upload buffer to Cloudinary
     const cloudinaryResponse = await uploadToCloudinary(req.file.buffer);
 
-    // Save metadata & Cloudinary secure URL to MongoDB
     const newFile = await File.create({
       fileName: req.file.originalname,
       filePath: cloudinaryResponse.secure_url,
@@ -172,16 +176,57 @@ export const uploadSingleFile = async (req, res) => {
     });
   }
 };
+
+// Multiple Files Upload
+export const uploadMultipleFiles = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        message: "upload at least one file",
+      });
+    }
+
+    const uploadPromises = req.files.map(async (file) => {
+      const cloudinaryResponse = await uploadToCloudinary(file.buffer);
+
+      return File.create({
+        fileName: file.originalname,
+        filePath: cloudinaryResponse.secure_url,
+        fileType: file.mimetype,
+        fileSize: file.size,
+      });
+    });
+
+    const savedFiles = await Promise.all(uploadPromises);
+
+    return res.status(StatusCodes.CREATED).json({
+      success: true,
+      message: "File Uploads Successfully",
+      data: savedFiles,
+    });
+  } catch (error) {
+    console.error("Multiple Upload Error:", error);
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Internal issue",
+    });
+  }
+};
 ```
 
 ---
 
 ## 🧪 Testing via Thunder Client
 
-To test the single file cloud upload endpoint:
+### 1. Single File Upload
 
-1. Create a new **`POST`** request in Thunder Client: `http://localhost:5000/api/files/upload`
-2. Go to the **Body** tab and select **Form Data**.
-3. Set the key/field name to **`file`** (exact match required by `upload.single("file")`).
-4. Change the field type from *Text* to **`File`** and browse/select an image or document.
-5. Hit **Send**!
+- **URL:** `http://localhost:5000/api/files/upload`
+- **Method:** `POST`
+- **Body:** Form Data -> Key: `file` (Type: File)
+
+### 2. Multiple Files Upload
+
+- **URL:** `http://localhost:5000/api/files/upload-multiple`
+- **Method:** `POST`
+- **Body:** Form Data -> Key: `files` (Type: File, add multiple entries or select multiple files)
