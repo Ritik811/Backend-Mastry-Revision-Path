@@ -4,7 +4,8 @@ import http from "http";
 import { configDotenv } from "dotenv";
 import connectionDB from "./config/db.js";
 import { Server } from "socket.io";
-import Message from "./models/message.js";
+import chatRouter from "./routes/chatRoutes.js";
+import { chatSocket } from "./sockets/chatSocket.js";
 
 configDotenv();
 connectionDB();
@@ -13,6 +14,8 @@ const app = express();
 
 app.use(express.json());
 app.use(cors());
+
+app.use("/api/chat", chatRouter);
 
 const server = http.createServer(app);
 
@@ -23,36 +26,7 @@ const io = new Server(server, {
   },
 });
 
-io.on("connection", (socket) => {
-  console.log(`⚡ A user connected: ${socket.id}`);
-
-  socket.on("join-room", (room) => {
-    socket.join(room);
-    console.log(`user with ID : ${socket.id} joined room: ${room}`);
-  });
-
-  socket.on("send-message", async (data) => {
-    try {
-      const { room, sender, message } = data;
-      console.log(
-        `Message Received in Room [${room}] from ${sender}: ${message}`,
-      );
-
-      const savedMessage = await Message.create({
-        room,
-        sender,
-        message,
-      });
-
-      io.to(room).emit("received message", savedMessage);
-    } catch (error) {
-      console.log("Error Saving message ", error);
-    }
-  });
-  socket.on("disconnect", () => {
-    console.log(`❌ User disconnected: ${socket.id}`);
-  });
-});
+chatSocket(io);
 
 const PORT = process.env.PORT || 5000;
 
