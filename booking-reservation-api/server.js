@@ -3,6 +3,7 @@ import cors from "cors";
 import { configDotenv } from "dotenv";
 import connectionDB from "./config/db.js";
 import roomRoutes from "./routers/roomRouter.js";
+import bookingRouter from "./routers/bookingRouter.js";
 
 configDotenv();
 connectionDB();
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use(cors());
 
 app.use("/api/rooms", roomRoutes);
+app.use("/api/booking", bookingRouter);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
